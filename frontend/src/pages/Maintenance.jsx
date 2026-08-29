@@ -125,8 +125,8 @@ export default function Maintenance() {
                   {canWrite && (
                     <div className="flex items-center gap-1">
                       <button data-testid={`complete-${t.id}`} onClick={() => complete(t.id)} title="Marquer fait" className="p-1.5 rounded-sm hover:bg-white/5 text-emerald-400"><CheckCircle size={16} /></button>
-                      <button onClick={() => openEdit(t)} className="p-1.5 rounded-sm hover:bg-white/5 text-slate-400"><PencilSimple size={14} /></button>
-                      <button onClick={() => remove(t.id)} className="p-1.5 rounded-sm hover:bg-white/5 text-slate-400 hover:text-red-400"><Trash size={14} /></button>
+                      <button data-testid={`edit-task-${t.id}`} onClick={() => openEdit(t)} className="p-1.5 rounded-sm hover:bg-white/5 text-slate-400"><PencilSimple size={14} /></button>
+                      <button data-testid={`delete-task-${t.id}`} onClick={() => remove(t.id)} className="p-1.5 rounded-sm hover:bg-white/5 text-slate-400 hover:text-red-400"><Trash size={14} /></button>
                     </div>
                   )}
                 </div>

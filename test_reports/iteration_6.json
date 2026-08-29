@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 6 — frontend-only aggressive stress re-verification of the recurring 'removeChild / NotFoundError' crash after removing React.StrictMode and setting isAnimationActive={false} on all Recharts series. Logged in as admin. Executed: (A) 5 full loops x 6 tabs at 120-200ms click interval (forcing mid-fetch unmounts) each loop mixed with a site change followed by 3 more fast tab clicks inside the 200ms selectSite deferral window; (B) Dashboard-focused stress: 3 rounds x 4 sites rapid site switching while LineChart+BarChart were still rendering; (C) 6x site change -> tab change 60ms later (inside deferral window); (D) EXTREME round: 4 loops x 6 tabs at 60-90ms interval, 10x browser back + 10x forward history spam, and 3x hard reload of /dashboard with a site change 300ms after mount (charts mid-render) followed by an immediate tab change. pageerror + console-error listeners active in every run. RESULT: ZERO uncaught exceptions, ZERO NotFoundError / removeChild / insertBefore, ZERO console errors across all runs. Regressions all pass: 6 tabs render correct headings, Bournezeau Dashboard renders 2 line curves (pH + AGV/TAC) and 4 bars (Mécanique/Process), empty sites (Celles sur Belle, Villefollet) render empty chart frames without crashing, user dropdown opens and the site-selector now opens on the FIRST click while the dropdown is open (modal={false} confirmed), Maintenance create -> complete -> delete full flow works (toasts 'Intervention enregistrée' / 'Supprimé'), empty site shows amber no-equip-warning with save-task disabled, and logout -> re-login cycle works with no setState-after-unmount warning.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Maintenance dialog", "issues": ["Still uses the native browser date input (input[type=date]) instead of the shadcn Calendar with FR formatting — carried over from iteration 5, cosmetic only"]},
+      {"screen": "Dashboard (empty site)", "issues": ["Empty charts show a bare rectangle frame with no axis ticks or 'aucune donnée' empty-state message — no crash, but low information value"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_6.json"],
+  "action_items": [
+    "No crash reproduced: StrictMode removal + isAnimationActive={false} hold under 60ms tab cycling, history spam, reload mid-render site changes. Ask the user to re-confirm in real usage (and to note browser/OS if it recurs).",
+    "Optional polish: add an explicit empty-state message in Dashboard charts when the selected site has no data.",
+    "Optional polish: replace native date input in the Maintenance dialog with the shadcn Calendar."
+  ],
+  "critical_code_review_comments": [
+    "SiteContext.selectSite defers setSiteId by 200ms with clearTimeout cleanup on unmount — correct, no setState-after-unmount observed.",
+    "Maintenance edit/delete row buttons had no data-testid; added edit-task-<id> and delete-task-<id> (test-only change, no behaviour change)."
+  ],
+  "updated_files": ["/app/frontend/src/pages/Maintenance.jsx"],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100%"},
+  "seed_data_creation": "Created maintenance task 'TEST_QA_Tache' on Bournezeau, completed it, then deleted it (cleanup done; one extra intervention history entry remains from the complete action).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin boivineaup@gmail.com / MethaTrack2026! (from /app/memory/test_credentials.md)",
+  "context_for_next_testing_agent": "Site ids: Bournezeau 6a92950cbee7abeae59a1904, St Gelais 6a92950cbee7abeae59a1905 (data), Celles sur Belle 6a92c0196f46debfc970c322, Villefollet 6a92c0256f46debfc970c323 (empty). New testids added: edit-task-<id>, delete-task-<id>. Delete uses window.confirm — register page.on('dialog', accept) before clicking. Site-selector now opens on first click even with the user dropdown open (modal={false}); a retry loop is still a safe pattern. Chart assertions: svg .recharts-line-curve (2 on Bournezeau), .recharts-bar-rectangle (4 on Bournezeau), .recharts-wrapper (2 always).",
+  "rca_of_the_issue": "Prior removeChild NotFoundError cascade had two dev-environment culprits: (1) React.StrictMode double-mount racing with Radix portals and Recharts D3 mutations, and (2) Recharts D3 animations detaching nodes React still tracked when Dashboard unmounted mid-animation. Both are now neutralised (StrictMode removed in index.js, isAnimationActive={false} on all Line/Bar). Verified unreproducible under 60-200ms tab cycling, mid-render site switches, and history spam."
+}

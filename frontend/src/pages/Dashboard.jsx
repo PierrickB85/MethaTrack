@@ -83,8 +83,8 @@ export default function Dashboard() {
               <YAxis yAxisId="r" orientation="right" stroke="#94a3b8" fontSize={11} />
               <Tooltip contentStyle={{ background: "#131C19", border: "1px solid #ffffff20", borderRadius: 2, fontSize: 12 }} />
               <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
-              <Line yAxisId="l" type="monotone" dataKey="pH" stroke={CHART_GREEN} strokeWidth={2} dot={{ r: 3 }} />
-              <Line yAxisId="r" type="monotone" dataKey="AGV/TAC" stroke={CHART_AMBER} strokeWidth={2} dot={{ r: 3 }} />
+              <Line yAxisId="l" type="monotone" dataKey="pH" stroke={CHART_GREEN} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+              <Line yAxisId="r" type="monotone" dataKey="AGV/TAC" stroke={CHART_AMBER} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -98,8 +98,8 @@ export default function Dashboard() {
               <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={11} />
               <Tooltip contentStyle={{ background: "#131C19", border: "1px solid #ffffff20", borderRadius: 2, fontSize: 12 }} />
               <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
-              <Bar yAxisId="left" dataKey="count" name="Nb pannes" fill={CHART_GREEN} radius={[2, 2, 0, 0]} />
-              <Bar yAxisId="right" dataKey="cost" name="Coût (€)" fill={CHART_RED} radius={[2, 2, 0, 0]} />
+              <Bar yAxisId="left" dataKey="count" name="Nb pannes" fill={CHART_GREEN} radius={[2, 2, 0, 0]} isAnimationActive={false} />
+              <Bar yAxisId="right" dataKey="cost" name="Coût (€)" fill={CHART_RED} radius={[2, 2, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>

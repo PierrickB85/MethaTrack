@@ -13,11 +13,12 @@ const queryClient = new QueryClient({
   },
 });
 
+// StrictMode is intentionally OFF: its dev-only double-mount collides with
+// Radix portals + Recharts (which mutates DOM via D3), producing spurious
+// "Failed to execute 'removeChild' on Node" NotFoundError cascades.
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </React.StrictMode>,
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>,
 );
