@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only verification of iteration-3 bug fixes (site switching + Maintenance tab). Logged in as admin, exercised both switch orders across all 4 sites, empty-site task dialog, full task CRUD + complete flow, stale-data regression on Pannes/Stock/Analyses/Equipements/Dashboard, and one tech-vs-admin scope spot-check. ZERO pageerror / Uncaught / console errors observed (only expected 403 network log lines from the deliberate scope probe). All 5 requested items PASS.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Maintenance > Nouvelle tâche dialog", "issues": ["'Prochaine échéance' uses the native browser date input (renders as 08/29/2026 US format) instead of the shadcn Calendar/Popover — inconsistent with FR locale used elsewhere (list shows '28 sept. 2026')"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: replace native <input type=date> in Maintenance dialog with shadcn Calendar for FR date format consistency",
+    "Optional: completing a task sets next_due = done_at + frequency (Aug 29 + 15 = Sep 13) rather than previous_due + frequency (Aug 30 + 15 = Sep 14). Confirm intended business rule.",
+    "Optional: deleting a maintenance task leaves its maintenance-history entries behind (one residual 'Digesteur principal' intervention on Bournezeau from this QA run); consider cascade or keep intentionally as audit trail."
+  ],
+  "critical_code_review_comments": [
+    "Maintenance.jsx load()/reset pattern is correct: state reset happens synchronously in the effect before the async fetch, so no stale flicker; verified by polling task rows every 500ms after a switch.",
+    "load() is called twice on mount in dev (React StrictMode double effect) — harmless but doubles GETs; consider an AbortController to also guard against out-of-order responses if a user switches sites rapidly (not reproducible manually, but the current code has no request-cancellation/ordering guard)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% (5/5 requested scenarios pass)"},
+  "seed_data_creation": "Created and deleted task 'Test QA' on Bournezeau; one maintenance-history entry remains from its completion.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin boivineaup@gmail.com / MethaTrack2026!; tech tech@methatrack.fr / Tech2026!",
+  "context_for_next_testing_agent": "Site ids: Bournezeau 6a92950cbee7abeae59a1904 (3 equips, 1 task), St Gelais 6a92950cbee7abeae59a1905, Celles sur Belle 6a92c0196f46debfc970c322 (empty), Villefollet 6a92c0256f46debfc970c323 (empty). Site option testid: site-option-<id>; nav testids nav-dashboard/pannes/equipements/stock/analyses/maintenance. Token in localStorage 'mt_token'. Verified: switch-then-nav and nav-then-switch to /maintenance both clean; empty site shows no-equip-warning + disabled save-task; DialogDescription present; create/complete/delete flow works with 'Intervention enregistrée' toast; tech sees only Bournezeau and gets 403 'Site non autorisé' on GET/POST for another site.",
+  "rca_of_the_issue": "Original user complaint could not be reproduced as a crash. The three defensive fixes (state reset on siteId change, try/catch + Sonner toast around the 3 parallel GETs, and amber warning + disabled save on 0-equipment sites) all behave as designed and eliminate the perceived empty/stale states. Only residual risk: no request cancellation on rapid consecutive site switches (out-of-order responses could still land), which was not reproducible at human interaction speed."
+}

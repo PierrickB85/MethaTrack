@@ -37,17 +37,26 @@ export default function Pannes() {
 
   async function load() {
     if (!siteId) return;
-    const params = { site_id: siteId };
-    if (status !== "all") params.status = status;
-    if (severity !== "all") params.severity = severity;
-    const [f, e, p] = await Promise.all([
-      api.get("/failures", { params }),
-      api.get("/equipments", { params: { site_id: siteId } }),
-      api.get("/parts", { params: { site_id: siteId } }),
-    ]);
-    setItems(f.data); setEquips(e.data); setParts(p.data);
+    try {
+      const params = { site_id: siteId };
+      if (status !== "all") params.status = status;
+      if (severity !== "all") params.severity = severity;
+      const [f, e, p] = await Promise.all([
+        api.get("/failures", { params }),
+        api.get("/equipments", { params: { site_id: siteId } }),
+        api.get("/parts", { params: { site_id: siteId } }),
+      ]);
+      setItems(f.data); setEquips(e.data); setParts(p.data);
+    } catch (err) {
+      toast.error(formatApiError(err));
+      setItems([]); setEquips([]); setParts([]);
+    }
   }
-  useEffect(() => { load(); }, [siteId, status, severity]);
+  useEffect(() => {
+    setItems([]); setEquips([]); setParts([]);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId, status, severity]);
 
   const filtered = useMemo(() => {
     const t = q.toLowerCase().trim();

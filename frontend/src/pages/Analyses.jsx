@@ -36,10 +36,19 @@ export default function Analyses() {
 
   async function load() {
     if (!siteId) return;
-    const { data } = await api.get("/analyses", { params: { site_id: siteId } });
-    setItems(data);
+    try {
+      const { data } = await api.get("/analyses", { params: { site_id: siteId } });
+      setItems(data);
+    } catch (err) {
+      toast.error(formatApiError(err));
+      setItems([]);
+    }
   }
-  useEffect(() => { load(); }, [siteId]);
+  useEffect(() => {
+    setItems([]);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId]);
 
   const enriched = useMemo(() => items.map((a) => ({ ...a, interp: interpretAnalysis(a) })), [items]);
   const filtered = statusFilter === "all" ? enriched : enriched.filter((a) => a.interp.status === statusFilter);

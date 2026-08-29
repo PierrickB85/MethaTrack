@@ -29,13 +29,22 @@ export default function Stock() {
 
   async function load() {
     if (!siteId) return;
-    const [p, m] = await Promise.all([
-      api.get("/parts", { params: { site_id: siteId } }),
-      api.get("/stock-movements", { params: { site_id: siteId } }),
-    ]);
-    setParts(p.data); setMoves(m.data);
+    try {
+      const [p, m] = await Promise.all([
+        api.get("/parts", { params: { site_id: siteId } }),
+        api.get("/stock-movements", { params: { site_id: siteId } }),
+      ]);
+      setParts(p.data); setMoves(m.data);
+    } catch (err) {
+      toast.error(formatApiError(err));
+      setParts([]); setMoves([]);
+    }
   }
-  useEffect(() => { load(); }, [siteId]);
+  useEffect(() => {
+    setParts([]); setMoves([]);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId]);
 
   const filtered = useMemo(() => {
     const t = q.toLowerCase().trim();

@@ -28,13 +28,22 @@ export default function Equipements() {
 
   async function load() {
     if (!siteId) return;
-    const [e, f] = await Promise.all([
-      api.get("/equipments", { params: { site_id: siteId } }),
-      api.get("/failures", { params: { site_id: siteId } }),
-    ]);
-    setItems(e.data); setFailures(f.data);
+    try {
+      const [e, f] = await Promise.all([
+        api.get("/equipments", { params: { site_id: siteId } }),
+        api.get("/failures", { params: { site_id: siteId } }),
+      ]);
+      setItems(e.data); setFailures(f.data);
+    } catch (err) {
+      toast.error(formatApiError(err));
+      setItems([]); setFailures([]);
+    }
   }
-  useEffect(() => { load(); }, [siteId]);
+  useEffect(() => {
+    setItems([]); setFailures([]);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId]);
 
   const kpi = useMemo(() => ({
     total: items.length,

@@ -29,15 +29,21 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!siteId) return;
+    setSum(null); setAnalyses([]); setFailures([]);
     (async () => {
-      const [s, a, f] = await Promise.all([
-        api.get("/dashboard/summary", { params: { site_id: siteId } }),
-        api.get("/analyses", { params: { site_id: siteId } }),
-        api.get("/failures", { params: { site_id: siteId } }),
-      ]);
-      setSum(s.data);
-      setAnalyses([...a.data].reverse());
-      setFailures(f.data);
+      try {
+        const [s, a, f] = await Promise.all([
+          api.get("/dashboard/summary", { params: { site_id: siteId } }),
+          api.get("/analyses", { params: { site_id: siteId } }),
+          api.get("/failures", { params: { site_id: siteId } }),
+        ]);
+        setSum(s.data);
+        setAnalyses([...a.data].reverse());
+        setFailures(f.data);
+      } catch (err) {
+        setSum({ equipments: 0, failures_total: 0, failures_open: 0, failures_critical: 0, cost_total: 0, stock_value: 0, low_stock_count: 0 });
+        setAnalyses([]); setFailures([]);
+      }
     })();
   }, [siteId]);
 

@@ -6,7 +6,7 @@ import { KpiCard, SectionTitle, StatusPill } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Calendar, CheckCircle, Trash, PencilSimple } from "@phosphor-icons/react";
@@ -27,14 +27,24 @@ export default function Maintenance() {
 
   async function load() {
     if (!siteId) return;
-    const [t, e, h] = await Promise.all([
-      api.get("/maintenance", { params: { site_id: siteId } }),
-      api.get("/equipments", { params: { site_id: siteId } }),
-      api.get("/maintenance-history", { params: { site_id: siteId } }),
-    ]);
-    setTasks(t.data); setEquips(e.data); setHistory(h.data);
+    try {
+      const [t, e, h] = await Promise.all([
+        api.get("/maintenance", { params: { site_id: siteId } }),
+        api.get("/equipments", { params: { site_id: siteId } }),
+        api.get("/maintenance-history", { params: { site_id: siteId } }),
+      ]);
+      setTasks(t.data); setEquips(e.data); setHistory(h.data);
+    } catch (err) {
+      toast.error(formatApiError(err));
+      setTasks([]); setEquips([]); setHistory([]);
+    }
   }
-  useEffect(() => { load(); }, [siteId]);
+  useEffect(() => {
+    // Reset immediately when switching site to avoid showing stale data
+    setTasks([]); setEquips([]); setHistory([]);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId]);
 
   const now = new Date();
   const enriched = tasks.map((t) => {
@@ -58,6 +68,9 @@ export default function Maintenance() {
   }
 
   async function save() {
+    if (!form.title.trim()) { toast.error("Le titre est requis"); return; }
+    if (!form.equipment_id) { toast.error("Sélectionnez un équipement"); return; }
+    if (!form.next_due) { toast.error("Prochaine échéance requise"); return; }
     try {
       const payload = { ...form, frequency_days: Number(form.frequency_days), next_due: new Date(form.next_due).toISOString() };
       if (editId) await api.patch(`/maintenance/${editId}`, payload);
@@ -72,8 +85,11 @@ export default function Maintenance() {
     } catch (e) { toast.error(formatApiError(e)); }
   }
   async function remove(id) {
-    if (!confirm("Supprimer cette tâche ?")) return;
-    await api.delete(`/maintenance/${id}`); toast.success("Supprimé"); load();
+    if (!window.confirm("Supprimer cette tâche ?")) return;
+    try {
+      await api.delete(`/maintenance/${id}`);
+      toast.success("Supprimé"); load();
+    } catch (e) { toast.error(formatApiError(e)); }
   }
 
   const statusPill = (s) =>
@@ -143,14 +159,23 @@ export default function Maintenance() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-[#131C19] border-white/10 text-slate-200 rounded-sm max-w-lg">
-          <DialogHeader><DialogTitle>{editId ? "Modifier tâche" : "Nouvelle tâche"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editId ? "Modifier tâche" : "Nouvelle tâche"}</DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">Planifiez une intervention préventive récurrente sur un équipement du site sélectionné.</DialogDescription>
+          </DialogHeader>
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs col-span-2">Titre<Input data-testid="t-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="mt-1 h-9 rounded-sm bg-[#0D1411] border-white/10" /></label>
             <label className="text-xs col-span-2">Équipement
-              <Select value={form.equipment_id} onValueChange={(v) => setForm({ ...form, equipment_id: v })}>
-                <SelectTrigger className="mt-1 h-9 rounded-sm bg-[#0D1411] border-white/10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent className="bg-[#131C19] border-white/10">{equips.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
-              </Select>
+              {equips.length === 0 ? (
+                <div data-testid="no-equip-warning" className="mt-1 h-9 flex items-center px-3 rounded-sm bg-amber-500/5 border border-amber-500/25 text-amber-300 text-xs">
+                  Aucun équipement sur ce site. Créez-en un dans l'onglet Équipement.
+                </div>
+              ) : (
+                <Select value={form.equipment_id || undefined} onValueChange={(v) => setForm({ ...form, equipment_id: v })}>
+                  <SelectTrigger data-testid="t-equipment" className="mt-1 h-9 rounded-sm bg-[#0D1411] border-white/10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent className="bg-[#131C19] border-white/10">{equips.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
+                </Select>
+              )}
             </label>
             <label className="text-xs">Fréquence (jours)<Input type="number" value={form.frequency_days} onChange={(e) => setForm({ ...form, frequency_days: e.target.value })} className="mt-1 h-9 rounded-sm bg-[#0D1411] border-white/10" /></label>
             <label className="text-xs">Prochaine échéance<Input type="date" value={form.next_due} onChange={(e) => setForm({ ...form, next_due: e.target.value })} className="mt-1 h-9 rounded-sm bg-[#0D1411] border-white/10" /></label>
@@ -158,7 +183,7 @@ export default function Maintenance() {
           </div>
           <DialogFooter>
             <Button onClick={() => setOpen(false)} className="rounded-sm bg-white/5 hover:bg-white/10">Annuler</Button>
-            <Button data-testid="save-task" onClick={save} className="rounded-sm bg-emerald-500 hover:bg-emerald-600 text-white">Enregistrer</Button>
+            <Button data-testid="save-task" onClick={save} disabled={equips.length === 0 && !editId} className="rounded-sm bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-40">Enregistrer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
