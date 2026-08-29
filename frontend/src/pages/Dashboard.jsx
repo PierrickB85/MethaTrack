@@ -29,7 +29,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!siteId) return;
-    setSum(null); setAnalyses([]); setFailures([]);
     (async () => {
       try {
         const [s, a, f] = await Promise.all([

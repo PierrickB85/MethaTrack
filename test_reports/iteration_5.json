@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 5 — frontend-only aggressive stress re-verification of the removeChild/NotFoundError crash cascade after removal of <main key={siteId}> and 200ms deferred setSiteId. Logged in as admin, then executed: (1) 3 full loops x 6 tabs with tab-click -> immediate site change -> same-tab re-click during loading -> second site change (72 site switches + 36 nav clicks); (2) site-selector open then NAVIGATION tab click (outside-click + route change) x4; (3) user dropdown open -> site-selector -> site pick -> user menu -> Admin x4; (4) Maintenance dialog open -> close -> immediate site change -> rapid nav x4; (5) rapid consecutive site picks inside the 200ms deferral window x6. Captured pageerror + console error events throughout. RESULT: ZERO uncaught exceptions, ZERO NotFoundError / removeChild / insertBefore errors in every run. All 6 tabs render correct data for the selected site, Maintenance 'Nouvelle tâche' dialog still opens after multi-site cycling, and the empty site (Celles sur Belle) shows the amber 'Aucun équipement' warning with save-task disabled.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Layout / DropdownMenu (user menu)", "issue": "While the user dropdown is open, the first click on the site selector is consumed by the Radix modal overlay (only closes the dropdown); a second click is required to open the site Select. Same happens right after closing the Maintenance dialog. No crash, but an extra click for the user. Consider modal={false} on DropdownMenu.", "selector": "[data-testid=\"site-selector\"]", "priority": "LOW"},
+      {"component": "SiteContext.selectSite", "issue": "200ms setTimeout defers setSiteId; the Select trigger label + page data therefore update with a visible ~200ms lag. The timeout is not cleared on unmount (e.g. logout within 200ms) which can produce a state update on an unmounted provider.", "selector": "n/a", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Maintenance > Nouvelle tâche dialog", "issues": ["'Prochaine échéance' uses the native browser date input (MM/DD/YYYY + browser picker icon) instead of the shadcn Calendar/Popover component; also shows US date format in a French app"]},
+      {"screen": "Global panels", "issues": ["Section labels (text-slate-500 on #0D1411) and 'NO_DATA_FOUND' placeholders are very low contrast (< 4.5:1) — legibility risk"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "No crash regression found — the removeChild fix (removed keyed remount + 200ms deferral) holds under aggressive mixed stress. Ask the user to re-confirm in real usage.",
+    "Optional: clear the selectSite setTimeout on unmount (store id in a ref / useEffect cleanup) to avoid setState-after-unmount.",
+    "Optional UX: set modal={false} on the user DropdownMenu so the site selector opens on the first click.",
+    "Replace native date input in Maintenance dialog with shadcn Calendar and FR date formatting."
+  ],
+  "critical_code_review_comments": [
+    "SiteContext: deferring state via setTimeout is a timing workaround, not a structural fix. A more robust pattern is to change the site inside the Select's onCloseAutoFocus / after animation end, or use React 18 startTransition; the current 200ms is coupled to Radix's animation duration and will silently break if the animation config changes.",
+    "SiteContext: the setTimeout has no cleanup and selectSite is recreated on each render (context value object not memoized) causing unnecessary re-renders of all consumers on every provider render."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested", "frontend": "100% (0 uncaught errors across 5 stress scenarios; all 6 tabs + dialog regressions pass)"},
+  "seed_data_creation": "none",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin boivineaup@gmail.com / MethaTrack2026! (from /app/memory/test_credentials.md)",
+  "context_for_next_testing_agent": "Site ids: Bournezeau 6a92950cbee7abeae59a1904 (data), St Gelais ...1905 (data), Celles sur Belle 6a92c0196f46debfc970c322 (empty), Villefollet 6a92c0256f46debfc970c323 (empty). Testids used: site-selector, site-option-<id>, nav-dashboard|pannes|equipements|stock|analyses|maintenance, user-menu-trigger, menu-admin, new-task-btn, save-task, no-equip-warning. NOTE for scripts: when a Radix DropdownMenu or Dialog is open, the first click on site-selector is absorbed by the overlay — retry the click until [data-testid^=\"site-option-\"] is present, otherwise tests appear to fail spuriously.",
+  "rca_of_the_issue": "Iteration 4's <main key={siteId}> forced a full route-subtree remount on every site change, tearing down page components while Radix portals (DropdownMenu/Dialog/Select) were still mounted — React then tried to removeChild nodes already detached, producing NotFoundError cascades. Removing the keyed remount and deferring setSiteId by 200ms (> Radix's ~150ms close animation) plus making selectSite idempotent eliminates the crash; verified with 72 site switches mixed with navigation, dropdown and dialog interactions, 0 errors."
+}

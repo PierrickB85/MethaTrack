@@ -1,0 +1,24 @@
+{
+  "summary": "Iteration 4 frontend-only stress verification of the React 18 + Radix Select portal race fix (setTimeout(0) deferral in SiteContext.selectSite + <main key={siteId}> remount + removed pre-load setXxx([]) resets). Logged in as admin and cycled all 4 sites (Bournezeau, St Gelais, Celles sur Belle, Villefollet) on all 6 pages (Dashboard, Pannes, Équipement, Stock, Analyses, Maintenance) at slow (>1.2s) cadence, at fast cascading cadence (2 full loops/page, ~120ms between open+select), plus an interleaved site-change-then-immediate-nav-click loop. Captured page.on('pageerror') and console type=='error' throughout: ZERO uncaught NotFoundError / 'removeChild on Node' / any React uncaught exception (0 pageerrors, 0 console errors across ~110 site switches). All 3 regressions PASS.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "selectSite's setTimeout(0) has no cleanup: if the SiteProvider unmounts (e.g. logout) within the same tick, setSiteId fires on an unmounted provider. Harmless in React 18 (no warning) but a stored timeout id + clearTimeout on unmount would be cleaner.",
+    "Page load() still has no AbortController / request-ordering guard; a very slow first response could land after a fast second switch. Not reproducible here because <main key={siteId}> remounts and discards the stale component tree, which effectively mitigates it — worth a comment in the code so it is not accidentally removed.",
+    "Deleting a maintenance task still leaves its maintenance-history entries (Bournezeau shows 1 residual 'Digesteur principal' intervention from QA runs). Pre-existing from iteration 3; may be intentional audit trail."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "not tested (frontend-only request)", "frontend": "100% (4/4 requested scenarios pass)" },
+  "seed_data_creation": "Created maintenance task 'TEST_QA_it4' on Bournezeau, completed it, then deleted it (verified 0 remaining rows). One residual maintenance-history entry from the completion.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin boivineaup@gmail.com / MethaTrack2026! (from /app/memory/test_credentials.md)",
+  "context_for_next_testing_agent": "Site switch crash is fixed and verified under heavy stress. Verified data-refresh correctness: Dashboard KPIs per site = Bournezeau(3 equip/0 open/193€/1236€), St Gelais(2/1/0€/422,7€), Celles sur Belle & Villefollet all zeros (identical snapshots because both sites are empty — expected, not a bug); Pannes rows 2/1/0/0. Villefollet Maintenance > Nouvelle tâche shows amber 'Aucun équipement sur ce site...' and Enregistrer stays disabled. Maintenance CRUD: create -> tasks 1->2, complete -> task stays with advanced next_due + intervention logged, delete -> row removed with 'Supprimé' toast. Selectors used: site-selector, site-option-<id>, nav-<page>, new-task-btn, t-title, t-equipment, save-task, task-<id>, complete-<id>, del-<id>.",
+  "rca_of_the_issue": "Original NotFoundError came from onValueChange synchronously mutating SiteContext (and pages synchronously clearing state) while Radix's SelectContent portal was still unmounting, so React tried to removeChild a node Radix had already detached. The applied fix (defer state change one tick, remount route children via key, drop pre-load resets) eliminates the overlap; confirmed by 0 pageerrors across slow, fast-cascading and interleaved nav stress runs."
+}

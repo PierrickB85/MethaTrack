@@ -40,7 +40,6 @@ export default function Equipements() {
     }
   }
   useEffect(() => {
-    setItems([]); setFailures([]);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId]);

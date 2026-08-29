@@ -41,7 +41,6 @@ export default function Stock() {
     }
   }
   useEffect(() => {
-    setParts([]); setMoves([]);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId]);

@@ -53,7 +53,6 @@ export default function Pannes() {
     }
   }
   useEffect(() => {
-    setItems([]); setEquips([]); setParts([]);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId, status, severity]);

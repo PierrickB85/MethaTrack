@@ -75,7 +75,7 @@ export default function Layout() {
               </Select>
             </div>
 
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger data-testid="user-menu-trigger" className="flex items-center gap-2 px-3 h-9 rounded-sm border border-white/10 bg-[#131C19] text-slate-200 hover:border-emerald-500/30">
                 <div className="w-6 h-6 rounded-sm bg-emerald-500/15 border border-emerald-500/30 grid place-items-center text-emerald-300 text-xs font-mono">
                   {user?.name?.[0]?.toUpperCase() || "?"}

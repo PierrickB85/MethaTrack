@@ -45,7 +45,6 @@ export default function Analyses() {
     }
   }
   useEffect(() => {
-    setItems([]);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId]);

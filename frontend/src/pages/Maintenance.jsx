@@ -40,8 +40,6 @@ export default function Maintenance() {
     }
   }
   useEffect(() => {
-    // Reset immediately when switching site to avoid showing stale data
-    setTasks([]); setEquips([]); setHistory([]);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId]);
