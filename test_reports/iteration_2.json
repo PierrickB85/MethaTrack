@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 2 re-test of the main agent's fixes. Backend: cleared stale login_attempts, re-ran the existing 52-test suite (all 52 now pass, incl. the 4 previously failing tests: GET /api/ health, brute-force, tech-cannot-PATCH-equipment, tech-cannot-DELETE-failure) and added a new 13-test file /app/backend/tests/test_site_scope.py covering the full site-scope matrix on every mutating single-doc route (equipments/parts/failures/analyses/maintenance PATCH+DELETE+complete), site reassignment via PATCH payload, health payload, brute-force lockout, stock-movements part_id filter preservation and cascade deletes. 65 tests total; 64 pass deterministically. The ONLY remaining backend defect is the brute-force lockout key: it is keyed on request.client.host which behind the k8s ingress is the ingress POD ip (observed .137 and .138), so failed attempts are split across pods and the 6th attempt is usually still 401 (lockout only triggers after ~9-12 attempts, non-deterministically). Frontend smoke: login page no longer prints any demo credentials, 'Pannes par type' now has 2 Y axes and both series render with visible height (202px vs 60px), Sonner toaster mounts bottom-right (y=bottom, x=right; toast rect top=1002 vs header bottom=61 - header no longer covered), tech role can navigate all 5 pages and legitimately create/save on its own site (toast 'Enregistré'), no console errors. All test data created was removed; DB back to seed baseline (2 sites, 5 equipments, 5 parts, 3 failures, 5 analyses, 1 maintenance task, 3 users).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/login (brute-force lockout)", "issue": "Lockout counter key is f'{request.client.host}:{email}' but request.client.host is the ingress pod IP, not the caller. Observed two distinct keys per email (10.231.129.137 / .138), so 5 real failures produce only 2-3 per key => 6th attempt returns 401. Live probe of 14 sequential wrong passwords: [401 x8, 423,423,423, 401, 423,423]. tests/test_site_scope.py::TestBruteForce::test_lockout_on_sixth_attempt fails 3/3 in isolation (passed once in a full parallel run => flaky). Fix: key on email only (optionally + first IP of X-Forwarded-For) and/or store attempts on the user document."},
+      {"endpoint": "DB hygiene", "issue": "12 orphan stock_movements and 3 orphan maintenance_history rows created BEFORE the cascade fix are still in the DB (new cascade works: verified 0 orphans after DELETE /api/parts/{id} and DELETE /api/maintenance/{id}). Consider a one-off cleanup."},
+      {"endpoint": "CORS", "issue": "Still CORS_ORIGINS=\"*\" in backend/.env with allow_credentials=True (unchanged from iteration 1; playbook asks for explicit origins)."},
+      {"endpoint": "PATCH /api/failures/{id}", "issue": "Unchanged from iteration 1: editing parts_used does not reconcile stock movements (stock desync on edit)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard", "issues": ["Fixed items verified: dual Y axis on 'Pannes par type' (Nb pannes bars now clearly visible), toaster bottom-right. Still ~50% empty space below the two charts on 1080p."]},
+      {"screen": "All list pages (Pannes/Stock/Analyses/Maintenance/Equipements/Admin)", "issues": ["Delete uses native window.confirm() instead of a shadcn AlertDialog - inconsistent with the app design and it silently blocks automated/keyboard flows."]},
+      {"screen": "Dialogs", "issues": ["Still native <input type=date> instead of shadcn Calendar/Popover.", "Radix warning in console: 'Missing Description or aria-describedby for DialogContent' on the create dialogs."]},
+      {"screen": "Charts", "issues": ["Recharts warning on first paint: 'width(-1) and height(-1) of chart should be greater than 0' - ResponsiveContainer mounts before layout; harmless but noisy."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_site_scope.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix brute-force lockout keying: replace request.client.host with the email (or X-Forwarded-For first hop); currently lockout needs ~2x the attempts and is non-deterministic behind the multi-pod ingress.",
+    "One-off cleanup of the 12 orphan stock_movements / 3 orphan maintenance_history rows left by pre-fix deletes.",
+    "Set explicit CORS_ORIGINS instead of \"*\" while allow_credentials=True.",
+    "Reconcile stock when PATCH /api/failures/{id} changes parts_used.",
+    "Replace window.confirm() delete prompts with shadcn AlertDialog; add DialogDescription to dialogs to silence the Radix a11y warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py login(): `from datetime import timedelta` is imported inside the handler - move to module imports.",
+    "Lockout documents in db.login_attempts never expire; add a TTL index on last_at or delete on unlock, otherwise the collection grows unbounded.",
+    "_assert_owned + _check_site are applied consistently on all PATCH/DELETE/complete routes (verified by 13 new tests) - good; consider turning the pair into a single dependency to avoid future omissions on new routes.",
+    "Verified GET /api/equipments/{id} is also scoped (technicien -> 403 on another site's equipment), so read paths are covered too."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_site_scope.py",
+    "/app/frontend/src/pages/Analyses.jsx"
+  ],
+  "success_rate": {"backend": "98% (64/65 deterministic; 1 flaky brute-force test)", "frontend": "100% of smoke flows (0 blocking UI defects)"},
+  "seed_data_creation": "No persistent seed data. All TEST_ records (equipments, parts, failures, analyses, maintenance tasks) deleted by fixtures; the 2 analyses created via the UI were deleted through the API. login_attempts collection cleared. Final counts verified: sites 2, equipments 5, parts 5, failures 3, analyses 5, maintenance 1, users 3.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin boivineaup@gmail.com / MethaTrack2026!; technicien tech@methatrack.fr / Tech2026!; viewer viewer@methatrack.fr / Viewer2026!",
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/ -q --junitxml=/app/test_reports/pytest/pytest_results.xml. tests/test_site_scope.py holds the iteration-2 regressions (site scope matrix, cascade deletes, part_id filter, health, brute-force). Only TestBruteForce::test_lockout_on_sixth_attempt is expected to fail until the lockout key is fixed; clear db.login_attempts before running it. Playwright notes: analyses rows now expose edit-<id>/del-<id> testids (added by QA); deletes go through native window.confirm so Playwright auto-dismiss cancels them - use page.on('dialog', lambda d: d.accept()) before clicking del-*. Toaster is [data-sonner-toaster] with data-y-position=bottom.",
+  "rca_of_the_issue": "Brute-force RCA: db.login_attempts documents are keyed by `f\"{request.client.host}:{email}\"`. In this Kubernetes preview the FastAPI app sees the ingress pod address as client host, and requests round-robin between at least two pods (10.231.129.137 / 10.231.129.138). Each pod therefore accumulates its own counter, so N failed attempts become ~N/2 per key and the documented '6th attempt => 423' behaviour does not hold (reproduced: 6 attempts => all 401; 14 attempts => first 423 on attempt 9). Additionally, since the real client IP is never used, the counter is effectively global-per-email once XFF is honoured - so the simplest correct fix is to key by email only (with a TTL/unlock cleanup), or parse X-Forwarded-For[0] if per-IP throttling is desired."
+}

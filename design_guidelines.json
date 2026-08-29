@@ -1,0 +1,113 @@
+{
+  "theme": "dark",
+  "app_type": "industrial_dashboard",
+  "typography": {
+    "headings": {
+      "font_family": "Manrope",
+      "weights": ["400", "600", "800"],
+      "usage": "Use for page titles, section headers, and major KPI labels.",
+      "classes": "font-sans tracking-tight"
+    },
+    "body": {
+      "font_family": "IBM Plex Sans",
+      "weights": ["400", "500"],
+      "usage": "Use for data tables, descriptions, form inputs, and general UI text.",
+      "classes": "font-sans leading-relaxed"
+    },
+    "monospace": {
+      "font_family": "JetBrains Mono",
+      "weights": ["400", "700"],
+      "usage": "CRITICAL: Use for all numeric data, KPIs, dashboard values, pH/MS/MO readings, and stock amounts.",
+      "classes": "font-mono tracking-tighter"
+    },
+    "instructions_to_main_agent": "Import these fonts via Google Fonts in index.css. Do not use Inter or Roboto."
+  },
+  "colors": {
+    "background": {
+      "app": "Radial gradient from `#1B2A24` to `#0D1411` to match the requested 'fond radial gris-vert'.",
+      "classes": "bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1B2A24] to-[#0D1411] min-h-screen text-slate-200"
+    },
+    "surfaces": {
+      "cards": "bg-[#1A2421]/60",
+      "panels": "bg-[#131C19]/80",
+      "borders": "border-white/10"
+    },
+    "status_tags": {
+      "critical": "bg-red-500/10 text-red-400 border border-red-500/20",
+      "warning": "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+      "normal": "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+      "info": "bg-sky-500/10 text-sky-400 border border-sky-500/20"
+    },
+    "accents": {
+      "primary": "#10b981",
+      "primary_hover": "#059669",
+      "muted": "#94a3b8"
+    }
+  },
+  "layouts": {
+    "global": "High-density dashboard layout. Strict grid hierarchy.",
+    "header": "Sticky top bar, z-50, backdrop-blur-xl bg-[#0D1411]/80 border-b border-white/10. Contains Logo and Multi-site selector (Dropdown).",
+    "navigation": "Tabs-based navigation (Pannes, Équipement, Stock, Analyses, Maintenance, Dashboard).",
+    "kpi_grid": "Top of every screen. grid-cols-2 md:grid-cols-4 gap-4 mb-6.",
+    "main_content": "grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+  },
+  "surfaces_and_borders": {
+    "style": "The 'Technical/Grid' Look. Avoid soft rounded corners. Use rounded-sm or rounded-none for a strict, industrial command-center feel.",
+    "effects": "No heavy drop shadows. Rely on 1px crisp borders (`border-white/10`) to separate elements. Cards should have `backdrop-blur-md` if overlaying the radial background."
+  },
+  "components": {
+    "buttons": "Sharp corners (`rounded-sm`), high-contrast text. Hover states must shift background color slightly and maintain minimum 3:1 contrast.",
+    "tables": "Dense padding (`py-2 px-3`), 1px bottom border per row (`border-white/5`), subtle hover row effect (`hover:bg-white/[0.02]`).",
+    "tabs": "Override default Shadcn tabs. Use transparent background for tablist, border-b border-white/10. Active tab gets a bottom border (`border-emerald-500`) and brighter text.",
+    "charts": "Recharts. Use `#10b981` (green) for positive/normal trends, `#ef4444` (red) for critical trends (e.g., breakdown costs). Hide unnecessary grid lines, use `strokeDasharray=\"3 3\"` with low opacity (`#ffffff20`) for necessary axes."
+  },
+  "visual_enhancers": {
+    "motion": "Minimalist and snappy. 0.15s ease-out transitions for hovers.",
+    "empty_states": "Use subdued Phosphor Icons with monospace text 'NO_DATA_FOUND'."
+  },
+  "media": {
+    "icons": "Phosphor Icons (@phosphor-icons/react). Use weight='duotone' or 'regular' for industrial, technical feel.",
+    "image_urls": {
+      "equipment_photos": [
+        {
+          "url": "https://images.unsplash.com/photo-1738918903155-0601cdc65818?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwyfHxpbmR1c3RyaWFsJTIwZXF1aXBtZW50JTIwY2xvc2UlMjB1cHxlbnwwfHx8fDE3ODc5OTEwOTV8MA&ixlib=rb-4.1.0&q=85",
+          "description": "Industrial pump/valves, use in Grille équipements",
+          "category": "equipment"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1620203853151-496c7228306c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwyfHxpbmR1c3RyaWFsJTIwcGlwZXN8ZW58MHx8fHwxNzg3OTkxMTA0fDA&ixlib=rb-4.1.0&q=85",
+          "description": "Complex network of metal pipes, use in Grille équipements",
+          "category": "equipment"
+        },
+        {
+          "url": "https://images.pexels.com/photos/38893871/pexels-photo-38893871.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+          "description": "Large industrial pipes with bolts, use in Grille équipements",
+          "category": "equipment"
+        }
+      ]
+    }
+  },
+  "accessibility": {
+    "contrast": "Ensure all text over the dark green/grey background has at least 4.5:1 ratio. Avoid dark gray text.",
+    "testing": "All interactive elements, forms, tabs, and table rows MUST include `data-testid` attributes."
+  },
+  "instructions_to_main_agent": [
+    "Install Phosphor Icons: `yarn add @phosphor-icons/react`",
+    "Install Recharts for dashboards: `yarn add recharts`",
+    "Ensure all text is in French as requested ('Français uniquement').",
+    "Do NOT use transparent backgrounds for the dropdowns (multi-site selector). Use `bg-[#131C19] border border-white/10` to prevent unreadable text.",
+    "Implement the background on the main layout wrapping the entire app to maintain the radial grey-green effect.",
+    "Use Shadcn components but strip away the default Vercel-like rounded borders. Replace with `rounded-sm` or `rounded-none`.",
+    "Focus heavily on the 'Analyses Digestat' color interpretation (e.g., pH too low = red, normal = green) and 'Stock' alert thresholds (color coding)."
+  ],
+  "universal_guidelines_for_main_agent": [
+    "You tend to converge toward generic outputs. Avoid this: make creative, distinctive frontends.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients, except for the explicit radial background requested.",
+    "Create depth through layered design elements with z-index hierarchy and subtle 1px borders, not heavy drop shadows.",
+    "You MUST NOT apply universal transition (transition: all).",
+    "You MUST NOT center align the app container (.App { text-align: center; }).",
+    "NEVER use AI assistant Emoji characters like 🤖🧠💭💡.",
+    "Every interaction needs micro-animations - hover states, transitions. Static = dead.",
+    "Use sonner for toasts (`/app/frontend/src/components/ui/sonner.jsx`)."
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "summary": "First full E2E iteration on MethaTrack (FR). Backend: created pytest suite (52 tests) covering auth/JWT/cookies, RBAC for admin/technicien/viewer, sites, equipments, parts+stock movements (entree/sortie/ajustement), failures with automatic stock 'sortie', analyses, full maintenance flow (create -> complete -> next_due advance + history), dashboard KPIs, users admin CRUD, file download auth. 48/52 passed. Frontend: Playwright tested login (valid+invalid), dashboard KPIs + 2 Recharts charts, navigation to all 6 pages, site switching + persistence, Pannes CRUD + status/severity/search filters, Stock tabs + low-stock badges + movement dialog updating quantity, Analyses creation with auto-interpretation (Stable/A surveiller/Risque) + interpretation filter, Maintenance completion advancing next_due + history, Equipement create + photo upload to Emergent Object Storage (image renders via /api/files?auth=), Admin page (users list, site-access checkboxes), RBAC UI gating for technicien/viewer, /admin route guard, logout + protected-route redirect. All frontend flows passed. Found 1 HIGH security defect (site-scope bypass on PATCH/DELETE), plus 3 smaller backend gaps.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "PATCH/DELETE /api/equipments/{id}, /api/parts/{id}, /api/failures/{id}, /api/analyses/{id}, /api/maintenance/{id}, /api/maintenance/{id}/complete",
+        "issue": "Site-scope bypass: these routes only use require_writer and never check that the TARGET document's site_id is in the caller's site_ids. Verified live: technicien (Site Nord only) successfully did PATCH /api/equipments/<Site-Sud-equipment> -> 200 (renamed to HACKED_BY_TECH) and DELETE /api/failures/<Site-Sud-failure> -> 200 (destroyed seeded data; restored manually by QA). Fix: load the doc first and reject with 403 when not is_admin(user) and doc['site_id'] not in user_site_ids(user); also block changing site_id to a non-permitted site.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {"endpoint": "GET /api/", "issue": "Returns 404. The @api.get('/') root/health route is declared AFTER app.include_router(api) (server.py line 664 vs 624), so it is never registered. Move it above include_router."},
+      {"endpoint": "POST /api/auth/login", "issue": "No brute-force protection: 7 consecutive wrong-password attempts all return 401 with no lockout/429/423 and no failed-attempt counter. Playbook requires lockout after 5 failures."},
+      {"endpoint": "GET /api/stock-movements?part_id=X", "issue": "When site_id is passed or the caller is not admin, q['part_id'] is overwritten by the accessible-parts $in list, silently discarding the explicit part_id filter (server.py list_movements)."},
+      {"endpoint": "PATCH /api/failures/{id}", "issue": "Editing a failure rewrites parts_used but never reconciles stock: quantities changed/removed on edit leave stock desynced (POST creates the 'sortie' movements, PATCH does not reverse/adjust them)."},
+      {"endpoint": "DELETE /api/parts/{id}, /api/maintenance/{id}", "issue": "No cascade: stock_movements of a deleted part and maintenance_history of a deleted task remain as orphans (14 orphan movements observed after test cleanup)."},
+      {"endpoint": "CORS", "issue": "backend/.env CORS_ORIGINS=\"*\" combined with allow_credentials=True. It works today only because Starlette echoes the origin, and the preview ingress rewrites preflight to '*'. Set explicit origins."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "All pages (toast)", "issues": ["Sonner toaster is position='top-right' and renders on top of the site selector and the user/avatar menu in the sticky header, covering them for ~4s after every save/delete. Suggest 'bottom-right' or add top offset."]},
+      {"screen": "Dashboard - 'Pannes par type' bar chart", "issues": ["'Coût (€)' and 'Nb pannes' are plotted on the same Y axis (0-160), so the 'Nb pannes' bars are visually invisible (height ~1px). Needs a second YAxis with yAxisId."]},
+      {"screen": "Dashboard", "issues": ["Only 4 KPI cards + 2 charts on a 1080px viewport leaves ~55% of the page empty below the charts; consider adding the low-stock / overdue-maintenance lists."]},
+      {"screen": "Login", "issues": ["Demo credentials are printed in the UI (DEMO_ADMIN: boivineaup@gmail.com, DEMO_TECH: tech@methatrack.fr / Tech2026!). This leaks the owner's admin email and a working password on a public page."]},
+      {"screen": "Pannes / Analyses / Maintenance / Equipement dialogs", "issues": ["Date fields use the native browser date picker (<Input type=\"date\">) instead of the shadcn Calendar/Popover component."]},
+      {"screen": "Login (when already authenticated)", "issues": ["Navigating to /login while a session exists briefly renders the full login form before redirecting (element churn / visible flicker)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: add target-document site ownership checks to every PATCH/DELETE/complete route (equipments, parts, failures, analyses, maintenance) - technicien can currently edit and delete other sites' records.",
+    "Move @api.get('/') above app.include_router(api) so the health endpoint stops returning 404.",
+    "Implement login brute-force lockout (counter + 423/429 after 5 failed attempts) per the auth playbook.",
+    "Fix list_movements so an explicit part_id filter is preserved when combined with site scoping.",
+    "Reconcile stock movements when a failure's parts_used is edited via PATCH /api/failures/{id}.",
+    "Cascade-delete stock_movements with their part and maintenance_history with its task.",
+    "Set explicit CORS_ORIGINS instead of \"*\" while allow_credentials=True.",
+    "Wrap every page's load() (Pannes/Stock/Analyses/Maintenance/Equipements/Dashboard/Admin) in try/catch with a visible error state - currently an API failure produces an unhandled promise rejection and a silently empty table.",
+    "Give the dashboard 'Pannes par type' chart a second Y axis, and move the toaster so it does not cover the header controls.",
+    "Remove the demo credentials block from the login page."
+  ],
+  "critical_code_review_comments": [
+    "server.py: _site_filter is only applied to GET/list routes. All mutating single-document routes (update_equipment, update_part, update_failure, delete_failure, update_analysis, delete_analysis, update_maintenance, complete_maintenance, delete_maintenance) skip ownership validation -> confirmed horizontal privilege escalation for role 'technicien'.",
+    "auth_utils.require_roles() is dead placeholder code (Depends(lambda: None)) and should be removed to avoid future misuse as a real guard.",
+    "server.py root route ordering bug: routes added to the APIRouter after include_router() are never mounted.",
+    "Frontend pages: async load() has no try/catch and no loading/error state; every page silently shows an empty table on API failure.",
+    "Equipements.uploadFile calls load() and then GET /equipments/{id} sequentially - two round trips where one suffices; also no client-side file-size/type validation before upload.",
+    "No pagination anywhere: all list endpoints use to_list(500..2000) and the UI renders every row; will not scale past a few hundred records."
+  ],
+  "updated_files": [
+    "/app/backend/tests/conftest.py",
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {"backend": "92% (48/52 pytest)", "frontend": "100% of tested flows (0 blocking UI defects)"},
+  "seed_data_creation": "No new seed data kept. All TEST_ prefixed records (site, equipment+photo, parts, failures, analysis, user, maintenance task) were deleted. The RBAC probe destroyed the seeded Site Sud failure 'Défaut variateur' - it was re-created with the original values. Final state verified: 2 sites, 5 equipments, 5 parts, 3 failures, 5 analyses, 1 maintenance task, 3 users. 14 orphan stock_movements remain (their parts were deleted; invisible in UI).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "admin boivineaup@gmail.com / MethaTrack2026!; technicien tech@methatrack.fr / Tech2026!; viewer viewer@methatrack.fr / Viewer2026! (all valid, from /app/memory/test_credentials.md)",
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/ -q --junitxml=/app/test_reports/pytest/pytest_results.xml. The 4 expected failures are intentional bug-documenting tests: test_root (404 health route), test_brute_force_lockout, test_tech_cannot_patch_equipment_of_other_site, test_tech_cannot_delete_failure_of_other_site. They must PASS after the main agent's fixes. Playwright notes: header nav uses data-testid nav-dashboard/nav-pannes/nav-equipements/nav-stock/nav-analyses/nav-maintenance; rows use panne-row-<id>, part-row-<id>, move-row-<id>, eq-card-<id>, task-<id>; row actions edit-<id>/del-<id>/move-<id>/complete-<id>. Login stores token in localStorage 'mt_token' - to switch users you MUST clear localStorage or click menu-logout first, otherwise /login instantly redirects and the submit button detaches. Maintenance/Equipement lists are divs, not <tbody> rows. Status pills are uppercased via CSS, so match case-insensitively. Analyses/Stock/Maintenance/Pannes create+delete flows were all verified working; photo upload to Emergent Object Storage works and files are served from /api/files/<path>?auth=<jwt>.",
+  "rca_of_the_issue": "Site-scope bypass RCA: _site_filter(user, site_id) is a query-builder used only by list endpoints. Single-document mutating handlers were written as thin one-liners (e.g. update_equipment -> db.equipments.update_one({'_id': _oid(eq_id)}, ...)) guarded solely by require_writer, which checks the ROLE but not the RESOURCE. Reproduction: login as tech@methatrack.fr, GET /api/sites (returns only Site Nord), take any equipment/failure id belonging to Site Sud from an admin session, then PATCH /api/equipments/{id} or DELETE /api/failures/{id} -> 200. Mitigation: introduce a shared async helper, e.g. _assert_site_access(collection, doc_id, user) that fetches the doc, 404s when missing and 403s when not is_admin(user) and doc['site_id'] not in user_site_ids(user), and call it at the top of every PATCH/DELETE/complete handler; additionally validate any incoming site_id in the payload against the caller's sites."
+}
