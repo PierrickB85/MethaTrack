@@ -1,4 +1,4 @@
-json{
+{
   "services": {
     "frontend": {
       "root": "frontend",
