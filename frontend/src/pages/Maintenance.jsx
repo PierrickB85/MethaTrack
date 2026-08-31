@@ -57,7 +57,7 @@ export default function Maintenance() {
     overdue: enriched.filter((t) => t.status === "overdue").length,
     soon: enriched.filter((t) => t.status === "soon").length,
     done: history.length,
-  }), [tasks, history]);
+  }), [tasks, history, enriched]);
 
   function openCreate() { setForm({ ...EMPTY, site_id: siteId }); setEditId(null); setOpen(true); }
   function openEdit(t) {
